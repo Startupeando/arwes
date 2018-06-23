@@ -1,7 +1,8 @@
 # How to contribute
 
-The Arwes project would love to welcome your contributions! There are many ways
-to help out:
+The Arwes project would love to welcome your contributions :blue_heart:
+
+There are many ways to help out:
 
 - Create an issue on GitHub, if you have found a bug
 - Write test cases for open bug issues
@@ -20,62 +21,169 @@ in all your interactions with the project.
 
 The Airbnb [JavaScript Style Guide](https://github.com/airbnb/javascript) is used.
 
-Install [editorconfig](http://editorconfig.org) and [eslint](https://eslint.org)
-in your editor/IDE and follow the conventions established by them.
+In your editor or IDE, install the following tools plugins/packages:
+
+- [editorconfig](http://editorconfig.org)
+- [eslint](https://eslint.org)
+- [prettier](https://prettier.io)
+
+So the code style is code formatting of the project is followed.
 
 ## Development
 
-### Install
+This is a monorepo maintained with [lerna](https://lernajs.io) for bootstrapping,
+but we don't used it for publishing. Each package is published independently.
 
-This package uses React v16. To install repository dependencies:
+### Install and setup
+
+To install repository dependencies and bootstrap repository packages:
 
 ```bash
 $ npm install
+$ npm i -g lerna
+$ lerna bootstrap
 ```
+
+### Testing and code guidelines
+
+To test the components and modules [jest](https://facebook.github.io/jest/),
+[sinon](http://sinonjs.org), and [enzyme](http://airbnb.io/enzyme/) are used.
+Run them using:
+
+```bash
+# test all packages once
+$ npm run test
+
+# tests with watcher
+$ npm run test-dev
+
+# run linter
+$ npm run lint
+
+# format code when needed
+$ npm run format
+```
+
+### Git commit messages
+
+For Git commit messages we use the following format:
+
+- `feat: add a new feature with tests`
+- `update: improve a current feature with tests`
+- `fix: resolve a bugfix or issue`
+- `refactor: change code structure with possibly breaking changes`
+- `chore: changes in building, playing, testing, or any other process`
+- `docs: update documentation either in code or markdown`
+
+The syntax `[change] message` is now deprecated in this repo.
 
 ### Playground
 
-[react-live](https://react-live.philpl.com/) is used to play with the components.
-To start the playground to experiment with them:
+TODO:
 
-```bash
-$ npm run play
+## Architecture
+
+### Components
+
+The React components follow this folder structure:
+
+```text
+/[componentNameInCamelCase]/
+    [componentNameInCamelCase].js - The React component code without HOCs
+    [componentNameInCamelCase].test.js - Component test cases
+    styles.js - The component styles using JSS if they apply
+    index.js - Export the component with their HOCs
+    Readme.js - Component docs and small demos
 ```
 
-It will start a server at [`http://127.0.0.1:7100`](http://127.0.0.1:7100)
-to list all components to play with.
+- Components should be simple functions unless they really require to be classes.
+- Use `React.PureComponent` when applicable.
+- Components does not use their dependencies directly, they should be passed
+down as props so the testing is easier.
 
-The playground application is run with the app in `/play`. Each component
-sandbox is defined in each component folder with the file `Play.md` where the
-code snippet will be passed to react-live to execute it. The assets in the
-`/static` folder are used.
+### Tools makers
 
-### Testing
+These are general purpose modules to be used independently of React components
+and should work universally, client and server side.
 
-To test the components and modules [karma](http://karma-runner.github.io),
-[chai](http://chaijs.com), [sinon](http://sinonjs.org) and [enzyme](http://airbnb.io/enzyme/)
-are used. Run them using:
+These are modules to create tools instances. The tools makers should follow the
+name convention: `make[ToolNameInCamelCase]`.
 
-```bash
-# run linter and tests once
-$ npm run test
-# or with watcher
-$ npm run test-dev
+```text
+/make[ToolNameInCamelCase]/
+    make[ToolNameInCamelCase].js - The module
+    make[ToolNameInCamelCase].test.js - Their test cases
+    index.js - Export the module
+    Readme.md - How to use
 ```
 
-### Site
+- All tools are creators to facilitate the dependency injection for any
+purpose, mostly for testing. e.g. in a "water" package, this is a water cleaner
+maker tool. All dependencies are optional but we can define our own.
 
-[next.js](https://github.com/zeit/next.js/) is used with support to read Markdown
-files as `text/plain`. The pages are in `/pages`, the components and utilities
-for the website are in `/site` and static files are served from `/static`.
+```js
+// packages/water/src/makeWaterCleaner/makeWaterCleaner.js //
+const makeWaterCleaner = dependencies => {
+    return {
+        clean: water => dependencies.removeBacteria(dependencies.removeDirt(water))
+    };
+};
 
-The script `/script/api.js` (run with `$ npm run script-api`) creates the
-documentation definitions for the components to be used in the site.
+// packages/water/src/makeWaterCleaner/index.js //
+import removeDirt from 'removeDirt';
+import removeBacteria from 'removeBacteria';
+import makeWaterCleaner from './makeWaterCleaner';
+export default providedDependencies =>
+  makeWaterCleaner({
+    removeDirt,
+    removeBacteria,
+    ...providedDependencies
+  });
 
-Run the website with:
-
-```bash
-$ npm run site-dev
+// usage.js //
+import makeWaterCleaner from '@arwes/water/makeWaterCleaner';
+const removeBacteria = water => { ... };
+const waterCleaner = makeWaterCleaner({ removeBacteria });
+const cleanWater = waterCleaner.clean(myWater);
 ```
 
-It will open a server at [`http://127.0.0.1:7000`](http://127.0.0.1:7000).
+- When using the browser APIs, always reference the `window` object. e.g.
+`window.document`, `window.localStorage`, `window.URL`...
+- There should not be any call to either node or browser APIs on imports.
+
+## Releasing
+
+Before releasing, please make sure all tests pass and code format and styles
+are ok.
+
+Lerna is not used for releasing.
+
+### NPM
+
+Each package has to be compiled and released to npm independently.
+
+In each package `/packages/[packageName]/` you wish to release, update their
+`package.json` versions accordingly and run:
+
+```bash
+$ npm run compile
+$ npm run release
+```
+
+### Git
+
+We use the `master` branch to release the packages. Other branches are used
+for development.
+
+To release to Git in GitHub, in the `master` branch, use the npm command:
+
+```bash
+$ npm run release-git
+```
+
+It will update the `[CHANGELOG.md](./CHANGELOG.md)` file, create a commit and
+a tag with the version of the `@arwes/arwes` package and push it to GitHub.
+
+-------
+
+Thanks for your contributions :blue_heart:
